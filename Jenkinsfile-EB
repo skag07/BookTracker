@@ -22,7 +22,7 @@ pipeline {
         }
         stage ("run CF command"){
             steps {
-                sh "aws cloudformation create-stack --stack-name booktracker --template-body file://(filename).yml"
+                sh "aws cloudformation create-stack --stack-name booktracker --template-body file://ec2Docker.yml"
 
             }
         }
