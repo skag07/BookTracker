@@ -1,0 +1,34 @@
+pipeline {
+
+    agent any
+
+	environment {
+		//DOCKERHUB_CREDENTIALS=credentials('')
+		AWS_ACCESS_KEY_ID     = credentials('')
+  		AWS_SECRET_ACCESS_KEY = credentials('')
+		//ARTIFACT_NAME = 'Dockerrun.aws.json'
+		//AWS_S3_BUCKET = 'S3 bucket name'
+		//AWS_EB_APP_NAME = 'EB application name'
+        //AWS_EB_ENVIRONMENT_NAME = 'EB enviroment name'
+        //AWS_EB_APP_VERSION = "${BUILD_ID}"
+	}
+
+    stages {
+        stage ("export values"){
+            steps {
+                sh "aws configure set region us-east-1"
+            
+        }
+        }
+        stage ("run CF command"){
+            steps {
+                sh "aws cloudformation create-stack --stack-name booktracker --template-body file://(filename).yml"
+
+            }
+        }
+        
+    }
+
+
+
+}
