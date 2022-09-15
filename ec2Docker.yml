@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Cloudformation Template for Static Website on EC2. This 
+  template installs cloudformation on Ubuntu 
+  Instance with custom security group allowing HTTP connections on port 80.
+  
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: sk-07
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  InstanceType:
+    Description: WebServer EC2 instance type
+    Type: String
+    Default: t2.medium
+    AllowedValues: [t2.nano, t2.micro, t2.small, t2.medium]
+    ConstraintDescription: must be a valid EC2 instance type.
+  SSHLocation:
+    Description: The IP address range that can be used to SSH to the EC2 instances
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    Default: 0.0.0.0/0
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  PublicAccess:
+    Description: The IP address range that can be used to SSH to the EC2 instances
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    Default: 0.0.0.0/0
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  LatestUbuntuAmiId:
+    Type:  'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/canonical/ubuntu/server/focal/stable/current/amd64/hvm/ebs-gp2/ami-id'
+
+Resources:
+  DockerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Enable HTTP for Apache Web Server and ssh for terminal
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 9876
+          ToPort: 9876
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5601
+          ToPort: 5601
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5000
+          ToPort: 5000
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5001
+          ToPort: 5001
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+        
+  DockerServer:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref 'LatestUbuntuAmiId'
+      InstanceType: !Ref 'InstanceType'
+      KeyName: !Ref 'KeyName'
+      SecurityGroupIds:
+        - !Ref DockerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName} server
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            # Install docker
+            sudo apt install apt-transport-https ca-certificates curl software-properties-common
+            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+            sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu `lsb_release -cs` test" -y
+            sudo apt update -y
+            sudo apt install docker-ce -y
+            sudo usermod -aG docker ubuntu
+
+            # Install docker-compose
+            sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+            exit
+
+Outputs:
+  PublicIP1:
+    Description: Public IP address of the newly created EC2 instance
+    Value: !GetAtt [DockerServer, PublicIp]
